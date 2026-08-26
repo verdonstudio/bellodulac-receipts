@@ -17,7 +17,12 @@ import sys
 from pathlib import Path
 
 MANIFEST_PATH = Path("android/app/src/main/AndroidManifest.xml")
-SETTINGS_GRADLE_PATH = Path("android/settings.gradle")
+# Les projets Flutter récents utilisent tantôt settings.gradle (Groovy),
+# tantôt settings.gradle.kts (Kotlin DSL) selon la version du template.
+SETTINGS_GRADLE_CANDIDATES = [
+    Path("android/settings.gradle.kts"),
+    Path("android/settings.gradle"),
+]
 APP_LABEL = "Reçus Airbnb"
 AGP_VERSION = "8.9.1"
 
@@ -61,15 +66,23 @@ def patch_manifest() -> None:
 
 
 def patch_agp_version() -> None:
-    if not SETTINGS_GRADLE_PATH.exists():
-        print(f"ERREUR : {SETTINGS_GRADLE_PATH} introuvable.", file=sys.stderr)
+    settings_path = next((p for p in SETTINGS_GRADLE_CANDIDATES if p.exists()), None)
+    if settings_path is None:
+        print(
+            "ERREUR : aucun android/settings.gradle(.kts) introuvable.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
-    content = SETTINGS_GRADLE_PATH.read_text(encoding="utf-8")
+    content = settings_path.read_text(encoding="utf-8")
     original = content
 
+    # Couvre à la fois la syntaxe Groovy :
+    #   id "com.android.application" version "X.Y.Z" apply false
+    # et la syntaxe Kotlin DSL :
+    #   id("com.android.application") version "X.Y.Z" apply false
     content = re.sub(
-        r'(id\s+["\']com\.android\.application["\']\s+version\s+["\'])[^"\']+(["\'])',
+        r'(com\.android\.application["\']\)?\s+version\s+["\'])[^"\']+(["\'])',
         rf"\g<1>{AGP_VERSION}\g<2>",
         content,
     )
@@ -77,13 +90,13 @@ def patch_agp_version() -> None:
     if content == original:
         print(
             "AVERTISSEMENT : aucune ligne de version AGP trouvée dans "
-            f"{SETTINGS_GRADLE_PATH} — rien à modifier (le fichier a peut-être "
+            f"{settings_path} — rien à modifier (le fichier a peut-être "
             "une structure différente de celle attendue).",
         )
         return
 
-    SETTINGS_GRADLE_PATH.write_text(content, encoding="utf-8")
-    print(f"settings.gradle mis à jour : AGP épinglé à {AGP_VERSION}")
+    settings_path.write_text(content, encoding="utf-8")
+    print(f"{settings_path} mis à jour : AGP épinglé à {AGP_VERSION}")
 
 
 def main() -> None:
