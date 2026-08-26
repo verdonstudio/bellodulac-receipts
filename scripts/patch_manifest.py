@@ -5,12 +5,12 @@ Ajustements post-scaffold appliqués juste après `flutter create`, avant
 
 1. Ajoute les permissions nécessaires (Internet, Caméra, Stockage) et le nom
    affiché de l'application dans AndroidManifest.xml.
-2. Épingle la version de l'Android Gradle Plugin (AGP) à 8.9.1. Nécessaire
+2. Épingle la version de l'Android Gradle Plugin (AGP) à 8.11.1. Nécessaire
    car flutter_inappwebview n'est pas encore compatible avec AGP 9+ (erreur
    de build "getDefaultProguardFile('proguard-android.txt') is no longer
-   supported"), alors que les versions AGP trop anciennes (< 8.9) posent
-   elles-mêmes d'autres soucis de minification. 8.9.1 est le point qui évite
-   les deux problèmes à la date d'écriture de ce script.
+   supported" / nouvelle DSL AGP 9), alors que Flutter exige lui-même au
+   moins AGP 8.11.1. 8.11.1 est le point précis qui satisfait les deux
+   contraintes à la date d'écriture de ce script.
 """
 import re
 import sys
@@ -24,7 +24,7 @@ SETTINGS_GRADLE_CANDIDATES = [
     Path("android/settings.gradle"),
 ]
 APP_LABEL = "Reçus Airbnb"
-AGP_VERSION = "8.9.1"
+AGP_VERSION = "8.11.1"
 
 PERMISSIONS = [
     '    <uses-permission android:name="android.permission.INTERNET"/>',
@@ -77,10 +77,6 @@ def patch_agp_version() -> None:
     content = settings_path.read_text(encoding="utf-8")
     original = content
 
-    # Couvre à la fois la syntaxe Groovy :
-    #   id "com.android.application" version "X.Y.Z" apply false
-    # et la syntaxe Kotlin DSL :
-    #   id("com.android.application") version "X.Y.Z" apply false
     content = re.sub(
         r'(com\.android\.application["\']\)?\s+version\s+["\'])[^"\']+(["\'])',
         rf"\g<1>{AGP_VERSION}\g<2>",
