@@ -1,24 +1,5 @@
 #!/usr/bin/env python3
-"""
-Ajustements post-scaffold appliqués juste après `flutter create`, avant
-`flutter build apk` (voir le workflow GitHub Actions) :
 
-1. Ajoute les permissions nécessaires (Internet, Caméra, Stockage) et le nom
-   affiché de l'application dans AndroidManifest.xml.
-2. Épingle la version de l'Android Gradle Plugin (AGP) à 8.11.1. Nécessaire
-   car flutter_inappwebview n'est pas encore compatible avec AGP 9+ (erreur
-   de build "getDefaultProguardFile('proguard-android.txt') is no longer
-   supported" / nouvelle DSL AGP 9), alors que Flutter exige lui-même au
-   moins AGP 8.11.1. 8.11.1 est le point précis qui satisfait les deux
-   contraintes à la date d'écriture de ce script.
-3. Déclare le FileProvider requis par flutter_inappwebview pour que la
-   prise de photo (<input capture>) fonctionne : sans ça, la caméra s'ouvre
-   mais la photo n'est jamais renvoyée à la page web une fois validée.
-4. Ajoute la configuration flutter_launcher_icons dans pubspec.yaml, pour
-   que l'icône de l'appli soit générée à partir de assets/icon/icon.png
-   (et assets/icon/icon_foreground.png pour l'icône adaptative). Le
-   workflow exécute ensuite `dart run flutter_launcher_icons` séparément.
-"""
 import re
 import sys
 from pathlib import Path
