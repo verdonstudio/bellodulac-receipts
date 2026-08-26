@@ -1,0 +1,53 @@
+name: Build APK
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [ main ]
+    paths:
+      - 'app_src/**'
+      - 'scripts/**'
+      - '.github/workflows/build-apk.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      # Le dossier android/ est généré par Flutter lui-même (au lieu d'être
+      # écrit à la main) : ça garantit qu'il est toujours compatible avec la
+      # version de Flutter installée par ce workflow.
+      - name: Créer le squelette Android natif
+        run: flutter create --platforms=android --org com.bellodulac --project-name recus_airbnb .
+
+      - name: Copier le code de l'application
+        run: cp -f app_src/main.dart lib/main.dart
+
+      - name: Ajouter les dépendances (webview + permissions)
+        run: flutter pub add flutter_inappwebview permission_handler
+
+      - name: Configurer les permissions et le nom de l'appli
+        run: python3 scripts/patch_manifest.py
+
+      - name: Récupérer les paquets
+        run: flutter pub get
+
+      # Signé avec la clé de debug par défaut de Flutter — largement
+      # suffisant pour une installation manuelle (sideload), pas pour le
+      # Play Store.
+      - name: Construire l'APK
+        run: flutter build apk --release
+
+      - name: Publier l'APK comme artefact du build
+        uses: actions/upload-artifact@v4
+        with:
+          name: recus-airbnb-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
