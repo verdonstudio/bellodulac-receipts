@@ -4,5 +4,5 @@
   "bilan": "https://docs.google.com/spreadsheets/d/1LX6Pkxu4FVwbNXE5g4P0wevjWwfXYMpKck8tz1J7NuU/edit?gid=930480678#gid=930480678",
   "yield": "https://docs.google.com/spreadsheets/d/1LX6Pkxu4FVwbNXE5g4P0wevjWwfXYMpKck8tz1J7NuU/edit?gid=1211299443#gid=1211299443",
   "airbnb messages": "https://www.airbnb.fr/hosting/messages",
-  "airbnb planning": "https://www.airbnb.fr/hosting/planning"
+  "airbnb planning": "https://www.airbnb.fr/multicalendar"
 }
