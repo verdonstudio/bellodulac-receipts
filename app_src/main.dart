@@ -10,6 +10,10 @@ const String kUrl = 'https://bellodulac-receipts.netlify.app/';
 
 const Color kBrandColor = Color(0xFF0F6E6A);
 
+/// Domaines dont les liens doivent ouvrir l'appli native correspondante
+/// (si elle est installée) plutôt que de s'afficher dans notre webview.
+const List<String> kExternalAppDomains = ['airbnb.', 'docs.google.com'];
+
 void main() {
   runApp(const ReceiptsApp());
 }
@@ -49,6 +53,17 @@ class _WebViewScreenState extends State<WebViewScreen> {
     // Demande les permissions caméra/photos une fois au démarrage, pour que
     // la prise de photo depuis le formulaire fonctionne du premier coup.
     _requestPermissions();
+    // Barre de statut opaque à la couleur de l'appli (au lieu de
+    // transparente/edge-to-edge) : sur Android récent, une barre de statut
+    // transparente peut se superposer au contenu de la webview et cacher sa
+    // toute première ligne. En la rendant opaque, cette zone est clairement
+    // réservée et ne recouvre jamais le contenu affiché en dessous.
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: kBrandColor,
+        statusBarIconBrightness: Brightness.light,
+      ),
+    );
   }
 
   Future<void> _requestPermissions() async {
@@ -89,57 +104,72 @@ class _WebViewScreenState extends State<WebViewScreen> {
                   _controller?.reload();
                 })
               else
-                InAppWebView(
-                  initialUrlRequest: URLRequest(url: WebUri(kUrl)),
-                  initialSettings: InAppWebViewSettings(
-                    javaScriptEnabled: true,
-                    domStorageEnabled: true,
-                    databaseEnabled: true,
-                    allowFileAccess: true,
-                    allowContentAccess: true,
-                    mediaPlaybackRequiresUserGesture: false,
-                    supportZoom: false,
-                    cacheEnabled: true,
-                    useHybridComposition: true,
-                  ),
-                  onWebViewCreated: (controller) => _controller = controller,
-                  shouldOverrideUrlLoading: (controller, navigationAction) async {
-                    final uri = navigationAction.request.url;
-                    // Le menu du site propose un lien "AirBnb" destiné à
-                    // ouvrir l'appli Airbnb elle-même (pas notre webview) :
-                    // on le détecte ici et on le fait gérer par le système
-                    // Android, qui ouvrira l'appli Airbnb si elle est
-                    // installée, sinon un navigateur classique.
-                    if (uri != null && uri.host.contains('airbnb.')) {
-                      final launched = await launchUrl(
-                        Uri.parse(uri.toString()),
-                        mode: LaunchMode.externalApplication,
+                Positioned.fill(
+                  // Positioned.fill (plutôt que de laisser le Stack deviner
+                  // la taille) force la webview à occuper exactement
+                  // l'espace laissé par SafeArea, sans jamais déborder sous
+                  // la barre de statut.
+                  child: InAppWebView(
+                    initialUrlRequest: URLRequest(url: WebUri(kUrl)),
+                    initialSettings: InAppWebViewSettings(
+                      javaScriptEnabled: true,
+                      domStorageEnabled: true,
+                      databaseEnabled: true,
+                      allowFileAccess: true,
+                      allowContentAccess: true,
+                      mediaPlaybackRequiresUserGesture: false,
+                      supportZoom: false,
+                      cacheEnabled: true,
+                      useHybridComposition: true,
+                    ),
+                    onWebViewCreated: (controller) => _controller = controller,
+                    shouldOverrideUrlLoading: (controller, navigationAction) async {
+                      final uri = navigationAction.request.url;
+                      // Le menu du site propose des liens (Airbnb, Google
+                      // Sheets) destinés à ouvrir l'appli native
+                      // correspondante plutôt que notre propre webview : on
+                      // les détecte ici et on les fait gérer par le système
+                      // Android, qui ouvrira l'appli installée, sinon un
+                      // navigateur classique.
+                      final host = uri?.host ?? '';
+                      final isExternalApp =
+                          uri != null && kExternalAppDomains.any(host.contains);
+                      if (isExternalApp) {
+                        final launched = await launchUrl(
+                          Uri.parse(uri.toString()),
+                          mode: LaunchMode.externalApplication,
+                        );
+                        if (launched) return NavigationActionPolicy.CANCEL;
+                      }
+                      return NavigationActionPolicy.ALLOW;
+                    },
+                    onProgressChanged: (controller, progress) {
+                      setState(() => _progress = progress / 100);
+                    },
+                    onReceivedError: (controller, request, error) {
+                      if (request.isForMainFrame ?? true) {
+                        setState(() => _hasError = true);
+                      }
+                    },
+                    onPermissionRequest: (controller, request) async {
+                      return PermissionResponse(
+                        resources: request.resources,
+                        action: PermissionResponseAction.GRANT,
                       );
-                      if (launched) return NavigationActionPolicy.CANCEL;
-                    }
-                    return NavigationActionPolicy.ALLOW;
-                  },
-                  onProgressChanged: (controller, progress) {
-                    setState(() => _progress = progress / 100);
-                  },
-                  onReceivedError: (controller, request, error) {
-                    if (request.isForMainFrame ?? true) {
-                      setState(() => _hasError = true);
-                    }
-                  },
-                  onPermissionRequest: (controller, request) async {
-                    return PermissionResponse(
-                      resources: request.resources,
-                      action: PermissionResponseAction.GRANT,
-                    );
-                  },
+                    },
+                  ),
                 ),
               if (!_hasError && _progress < 1.0)
-                LinearProgressIndicator(
-                  value: _progress,
-                  minHeight: 3,
-                  backgroundColor: Colors.white24,
-                  color: Colors.white,
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: LinearProgressIndicator(
+                    value: _progress,
+                    minHeight: 3,
+                    backgroundColor: Colors.white24,
+                    color: Colors.white,
+                  ),
                 ),
             ],
           ),
