@@ -29,7 +29,7 @@ jobs:
         run: cp -f app_src/main.dart lib/main.dart
 
       - name: Ajouter les dependances
-        run: flutter pub add flutter_inappwebview permission_handler
+        run: flutter pub add flutter_inappwebview permission_handler url_launcher
 
       - name: Configurer les permissions et le nom de l appli
         run: python3 scripts/patch_manifest.py
