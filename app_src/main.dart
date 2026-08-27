@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// URL de l'application web à afficher. Pour changer d'adresse plus tard,
 /// il suffit de modifier cette ligne et de relancer le build (voir README).
@@ -102,6 +103,22 @@ class _WebViewScreenState extends State<WebViewScreen> {
                     useHybridComposition: true,
                   ),
                   onWebViewCreated: (controller) => _controller = controller,
+                  shouldOverrideUrlLoading: (controller, navigationAction) async {
+                    final uri = navigationAction.request.url;
+                    // Le menu du site propose un lien "AirBnb" destiné à
+                    // ouvrir l'appli Airbnb elle-même (pas notre webview) :
+                    // on le détecte ici et on le fait gérer par le système
+                    // Android, qui ouvrira l'appli Airbnb si elle est
+                    // installée, sinon un navigateur classique.
+                    if (uri != null && uri.host.contains('airbnb.')) {
+                      final launched = await launchUrl(
+                        Uri.parse(uri.toString()),
+                        mode: LaunchMode.externalApplication,
+                      );
+                      if (launched) return NavigationActionPolicy.CANCEL;
+                    }
+                    return NavigationActionPolicy.ALLOW;
+                  },
                   onProgressChanged: (controller, progress) {
                     setState(() => _progress = progress / 100);
                   },
